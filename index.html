@@ -1,0 +1,789 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#173b60">
+<title>التقرير اليومي - الربيدي</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:12px;background:#eef1f4;font-family:Tahoma,Arial;color:#222}
+.container{max-width:950px;margin:auto;background:white;padding:15px;border-radius:10px}
+.header{text-align:center;border-bottom:3px solid #173f35;margin-bottom:15px}
+.header h2{color:#173f35}
+.section{border:1px solid #ddd;border-radius:9px;padding:12px;margin:15px 0}
+h3{color:#173f35}
+label{display:block;font-weight:bold;margin-top:10px}
+input,select{width:100%;padding:10px;margin-top:5px;border:1px solid #ccc;border-radius:7px;font:15px Tahoma;background:white}
+button{border:0;padding:10px 13px;border-radius:7px;margin:5px 2px;color:white;background:#173f35;font:14px Tahoma}
+.add{background:#23734f;width:100%;margin-top:12px}
+.delete{background:#b83232;padding:6px}
+.edit{background:#2765a0;padding:6px}
+.save{background:#176c3c}
+.print{background:#234e8a}
+.clear{background:#a52a2a}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th,td{border:1px solid #777;padding:8px 4px;text-align:center}
+th{background:#e5eee9}
+.summary{background:#f3f7f4;padding:10px;border:1px solid #ccd8cf;border-radius:8px}
+.summary p{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #bbb;padding-bottom:7px}
+.note{font-size:12px;color:#666;line-height:1.7}
+#message{text-align:center;color:green;font-weight:bold}
+#printReport{display:none}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+
+  html, body {
+    width: 100%;
+    height: auto;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printReport,
+  #printReport * {
+    visibility: visible !important;
+  }
+
+  #printReport {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    font-family: Tahoma, Arial;
+    color: black;
+    font-size: 9px;
+    line-height: 1.15;
+  }
+
+  #printReport h2 {
+    font-size: 14px;
+    margin: 3px 0;
+  }
+
+  #printReport h3 {
+    font-size: 10px;
+    margin: 4px 0 2px;
+  }
+
+  #printReport p {
+    margin: 3px 0;
+  }
+
+  #printReport table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3px 0 5px;
+    page-break-inside: avoid;
+  }
+
+  #printReport th,
+  #printReport td {
+    border: 1px solid #222;
+    padding: 3px;
+    text-align: center;
+    font-size: 9px;
+  }
+
+  #printReport th {
+    background: #e5e5e5 !important;
+    print-color-adjust: exact;
+  }
+
+  #printReport tr {
+    page-break-inside: avoid;
+  }
+}
+
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h3>بسم الله الرحمن الرحيم</h3>
+<h2>الربيدي للألمنيوم ولوازمه</h2>
+<h3>التقرير اليومي</h3>
+</div>
+
+<div class="section">
+<h3>بيانات التقرير</h3>
+<label>الفرع</label>
+<select id="branch">
+<option>المركز الرئيسي - صنعاء</option>
+<option>فرع مأرب</option>
+<option>فرع المكلا</option>
+<option>فرع عدن</option>
+</select>
+<label>التاريخ</label>
+<input type="date" id="date">
+<label>اليوم</label>
+<input id="day" placeholder="اليوم">
+</div>
+
+<div class="section">
+<h3>المبيعات النقدية</h3>
+<label>المبلغ</label>
+<input type="number" id="cashAmount" min="0" step="any" value="0">
+<label>العملة</label>
+<select id="cashCurrency" class="currency">
+<option>ريال يمني</option><option>ريال سعودي</option><option>دولار أمريكي</option>
+</select>
+</div>
+
+<div class="section">
+<h3>المبيعات الآجلة حسب العملاء</h3>
+<label>اسم العميل</label>
+<input id="creditName" placeholder="اسم العميل">
+<label>المبلغ</label>
+<input type="number" id="creditAmount" min="0" step="any">
+<label>العملة</label>
+<select id="creditCurrency" class="currency">
+<option>ريال يمني</option><option>ريال سعودي</option><option>دولار أمريكي</option>
+</select>
+<button class="add" onclick="addCredit()">إضافة مبيعة آجلة</button>
+<table>
+<thead><tr><th>العميل</th><th>المبلغ</th><th>العملة</th><th>التحكم</th></tr></thead>
+<tbody id="creditsTable"></tbody>
+</table>
+</div>
+
+<div class="section">
+<h3>المبالغ المستلمة من الآجل</h3>
+<label>اسم العميل</label>
+<input id="collectionName" placeholder="اسم العميل">
+<label>المبلغ المستلم</label>
+<input type="number" id="collectionAmount" min="0" step="any">
+<label>العملة</label>
+<select id="creditCurrency" class="currency" disabled>
+<option>ريال يمني</option>
+<option>ريال سعودي</option>
+<option>دولار أمريكي</option>
+</select>
+<button class="add" onclick="addCollection()">إضافة مبلغ مستلم</button>
+<table>
+<thead><tr><th>العميل</th><th>المبلغ</th><th>العملة</th><th>التحكم</th></tr></thead>
+<tbody id="collectionsTable"></tbody>
+</table>
+</div>
+
+<div class="section">
+<h3>سندات القبض والصرف والتحويلات</h3>
+<label>نوع العملية</label>
+<select id="transactionType">
+<option value="receipt">سند قبض</option>
+<option value="transfer">تحويل مستلم</option>
+<option value="payment">سند صرف</option>
+</select>
+<label>اسم الحساب</label>
+<input id="transactionAccount" placeholder="اسم الحساب">
+<label>البيان</label>
+<input id="transactionDescription" placeholder="تفاصيل العملية">
+<label>المبلغ</label>
+<input type="number" id="transactionAmount" min="0" step="any">
+<label>العملة</label>
+<select id="transactionCurrency" class="currency">
+<option>ريال يمني</option><option>ريال سعودي</option><option>دولار أمريكي</option>
+</select>
+<button class="add" onclick="addTransaction()">إضافة السند</button>
+<table>
+<thead><tr><th>الحساب</th><th>البيان</th><th>نوع السند</th><th>المبلغ</th><th>العملة</th><th>التحكم</th></tr></thead>
+<tbody id="transactionsTable"></tbody>
+</table>
+</div>
+
+<div class="section">
+<h3>ملخص حسابات العملاء حسب العملة</h3>
+<table>
+<thead><tr><th>العميل</th><th>العملة</th><th>مبيعات آجلة</th><th>مبالغ مستلمة</th><th>الفرق</th></tr></thead>
+<tbody id="customerSummary"></tbody>
+</table>
+<p class="note">الفرق يقارن عمليات اليوم فقط، ولا يمثل الرصيد التاريخي الكامل للعميل.</p>
+</div>
+
+<div class="section">
+<h3>ملخص المبيعات</h3>
+<div class="summary" id="summary"></div>
+</div>
+
+<button class="save" onclick="saveReport()">حفظ التقرير</button>
+<button class="print" onclick="printReport()">طباعة التقرير / PDF</button>
+<button onclick="loadReport()">استرجاع تقرير هذا التاريخ</button>
+<button class="clear" onclick="clearReport()">تفريغ البيانات</button>
+<p id="message"></p>
+<p class="note">البيانات محفوظة على هذا الجهاز والمتصفح فقط. احتفظ بنسخة PDF من التقارير المهمة.</p>
+</div>
+
+<div id="printReport"></div>
+
+<script>
+let credits=[];
+let collections=[];
+let transactions=[];
+
+const $=id=>document.getElementById(id);
+const currencies=["ريال يمني","ريال سعودي","دولار أمريكي"];
+
+function amount(id){return Math.max(0,Number($(id).value)||0)}
+function fmt(n){return Number(n||0).toLocaleString("en-US",{maximumFractionDigits:2})}
+function money(n,c){return fmt(n)+" "+c}
+function safe(v){
+ return String(v??"").replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+ }[c]));
+}
+function total(list,c){return list.filter(x=>x.currency===c).reduce((s,x)=>s+Number(x.amount),0)}
+function allCurrencies(){
+ return [...new Set([
+  ...currencies,
+  ...credits.map(x=>x.currency),
+  ...collections.map(x=>x.currency),
+  ...transactions.map(x=>x.currency),
+  $("cashCurrency").value
+ ])];
+}
+
+function addCredit(){
+ let name=$("creditName").value.trim(),n=amount("creditAmount"),currency=$("creditCurrency").value;
+ if(!name||n<=0){alert("أدخل اسم العميل والمبلغ");return}
+ credits.push({name,amount:n,currency});
+ $("creditName").value="";$("creditAmount").value="";
+ renderAll();
+}
+function addCollection(){
+ let name=$("collectionName").value.trim(),n=amount("collectionAmount"),currency=$("collectionCurrency").value;
+ if(!name||n<=0){alert("أدخل اسم العميل والمبلغ");return}
+ collections.push({name,amount:n,currency});
+ $("collectionName").value="";$("collectionAmount").value="";
+ renderAll();
+}
+function addTransaction(){
+ let account=$("transactionAccount").value.trim();
+ let description=$("transactionDescription").value.trim();
+ let n=amount("transactionAmount");
+ if(!account||!description||n<=0){alert("أدخل الحساب والبيان والمبلغ");return}
+ transactions.push({
+  account,description,amount:n,
+  type:$("transactionType").value,
+  currency:$("transactionCurrency").value
+ });
+ $("transactionAccount").value="";
+ $("transactionDescription").value="";
+ $("transactionAmount").value="";
+ renderAll();
+}
+
+function removeItem(type,i){
+ if(!confirm("هل تريد حذف هذه العملية؟"))return;
+ if(type==="credit")credits.splice(i,1);
+ if(type==="collection")collections.splice(i,1);
+ if(type==="transaction")transactions.splice(i,1);
+ renderAll();
+}
+function editItem(type,i){
+ let list=type==="credit"?credits:type==="collection"?collections:transactions;
+ let x=list[i];if(!x)return;
+ let name=prompt(type==="transaction"?"اسم الحساب":"اسم العميل",
+ type==="transaction"?x.account:x.name);
+ if(name===null||!name.trim())return;
+ let n=prompt("المبلغ",x.amount);
+ if(n===null||n.trim()===""||!Number.isFinite(Number(n))||Number(n)<=0){
+  alert("المبلغ غير صحيح");return;
+ }
+ let c=prompt("اكتب العملة كما هي: ريال يمني أو ريال سعودي أو دولار أمريكي",x.currency);
+ if(c===null)return;
+ if(!currencies.includes(c.trim())){alert("العملة غير معروفة");return}
+ if(type==="transaction"){
+  x.account=name.trim();
+  let d=prompt("البيان",x.description);
+  if(d!==null)x.description=d.trim();
+ }else{x.name=name.trim()}
+ x.amount=Number(n);x.currency=c.trim();
+ renderAll();
+}
+
+function renderList(id,list,type){
+ $(id).innerHTML=list.map((x,i)=>`
+ <tr>
+ <td>${safe(type==="transaction"?x.account:x.name)}</td>
+ ${type==="transaction"?`<td>${safe(x.description)}</td><td>${typeName(x.type)}</td>`:""}
+ <td>${fmt(x.amount)}</td><td>${safe(x.currency)}</td>
+ <td><button class="edit" onclick="editItem('${type}',${i})">تعديل</button>
+ <button class="delete" onclick="removeItem('${type}',${i})">حذف</button></td>
+ </tr>`).join("");
+}
+function typeName(t){
+ return t==="payment"?"سند صرف":t==="transfer"?"تحويل مستلم":"سند قبض";
+}
+
+function renderCustomerSummary(){
+ let keys=[...new Set([
+  ...credits.map(x=>x.name+"|"+x.currency),
+  ...collections.map(x=>x.name+"|"+x.currency)
+ ])];
+ $("customerSummary").innerHTML=keys.map(k=>{
+  let [name,c]=k.split("|");
+  let sold=credits.filter(x=>x.name===name&&x.currency===c).reduce((s,x)=>s+x.amount,0);
+  let got=collections.filter(x=>x.name===name&&x.currency===c).reduce((s,x)=>s+x.amount,0);
+  return `<tr><td>${safe(name)}</td><td>${safe(c)}</td><td>${fmt(sold)}</td><td>${fmt(got)}</td><td>${fmt(sold-got)}</td></tr>`;
+ }).join("");
+}
+
+
+function renderSummary(){
+  let currency = $("cashCurrency").value;
+
+  let cash = amount("cashAmount");
+  let credit = total(credits, currency);
+  let received = total(collections, currency);
+
+  let receipts = total(
+    transactions.filter(x => x.type === "receipt"), currency
+  );
+
+  let transfers = total(
+    transactions.filter(x => x.type === "transfer"), currency
+  );
+
+  let payments = total(
+    transactions.filter(x => x.type === "payment"), currency
+  );
+
+  $("summary").innerHTML = `
+    <div style="border-bottom:2px solid #aaa;padding:8px 0">
+      <h4>عملة التقرير: ${safe(currency)}</h4>
+      <p><span>المبيعات النقدية</span><b>${fmt(cash)}</b></p>
+      <p><span>المبيعات الآجلة</span><b>${fmt(credit)}</b></p>
+      <p><span>إجمالي المبيعات</span><b>${fmt(cash + credit)}</b></p>
+      <p><span>المبالغ المستلمة من الآجل</span><b>${fmt(received)}</b></p>
+      <p><span>سندات القبض</span><b>${fmt(receipts)}</b></p>
+      <p><span>التحويلات المستلمة</span><b>${fmt(transfers)}</b></p>
+      <p><span>سندات الصرف</span><b>${fmt(payments)}</b></p>
+    </div>
+  `;
+}
+
+function renderAll(){
+ renderList("creditsTable",credits,"credit");
+ renderList("collectionsTable",collections,"collection");
+ renderList("transactionsTable",transactions,"transaction");
+ renderCustomerSummary();
+ renderSummary();
+}
+
+function key(){
+ return "rubaidi_"+$("branch").value+"_"+$("date").value;
+}
+function data(){
+ return {
+  branch:$("branch").value,date:$("date").value,day:$("day").value,
+  cashAmount:amount("cashAmount"),cashCurrency:$("cashCurrency").value,
+  credits,collections,transactions
+ };
+}
+ 
+async function getReportBranchId() {
+  const user = window.rubaidiUser;
+  if (!user) throw new Error("بيانات المستخدم لم تجهز بعد");
+
+  // الموظف يحفظ في فرعه المحدد في قاعدة البيانات
+  if (user.role !== "admin") return user.branch_id;
+
+  const branchNames = {
+    "المركز الرئيسي - صنعاء": "المركز الرئيسي صنعاء",
+    "المركز الرئيسي صنعاء": "المركز الرئيسي صنعاء",
+    "مأرب": "فرع مأرب",
+    "فرع مأرب": "فرع مأرب",
+    "المكلا": "فرع المكلا",
+    "فرع المكلا": "فرع المكلا",
+    "عدن": "فرع عدن",
+    "فرع عدن": "فرع عدن"
+  };
+
+  const selected = $("branch").value;
+  const name = branchNames[selected] || selected;
+
+  const { data, error } = await supabaseClient
+    .from("branches")
+    .select("id,name")
+    .eq("name", name)
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+async function getCurrenciesMap() {
+  const { data, error } = await supabaseClient
+    .from("currencies")
+    .select("id,name");
+
+  if (error) throw error;
+
+  const map = {};
+  data.forEach(c => map[c.name] = c.id);
+  return map;
+}
+
+async function saveReport() {
+  if (!$("date").value) {
+    alert("اختر تاريخ التقرير");
+    return;
+  }
+
+  try {
+    // حفظ نسخة احتياطية محلية
+    localStorage.setItem(key(), JSON.stringify(data()));
+
+    const branchId = await getReportBranchId();
+    const currencies = await getCurrenciesMap();
+
+    const { data: report, error: reportError } =
+      await supabaseClient
+        .from("daily_reports")
+        .upsert({
+          branch_id: branchId,
+          report_date: $("date").value,
+          day: $("day").value
+        }, {
+          onConflict: "branch_id,report_date"
+        })
+        .select("id")
+        .single();
+
+    if (reportError) throw reportError;
+
+    const reportId = report.id;
+    const rows = [];
+
+    function addRow(type, amountValue, currency, account, customer, description) {
+      if (Number(amountValue) <= 0) return;
+
+      const currencyId = currencies[currency];
+      if (!currencyId) {
+        throw new Error("العملة غير موجودة في قاعدة البيانات: " + currency);
+      }
+
+      rows.push({
+        report_id: reportId,
+        transaction_type: type,
+        amount: Number(amountValue),
+        currency_id: currencyId,
+        account: account || null,
+        customer_name: customer || null,
+        description: description || null
+      });
+    }
+
+    // المبيعات النقدية
+    addRow(
+      "cash_sale",
+      amount("cashAmount"),
+      $("cashCurrency").value,
+      "المبيعات النقدية",
+      null,
+      "المبيعات النقدية"
+    );
+
+    // المبيعات الآجلة
+    credits.forEach(x => {
+      addRow("credit_sale", x.amount, x.currency,
+        "مبيعات آجلة", x.name, "مبيعات آجلة");
+    });
+
+    // المبالغ المستلمة من الآجل
+    collections.forEach(x => {
+      addRow("credit_collection", x.amount, x.currency,
+        "تحصيل آجل", x.name, "مبلغ مستلم من الآجل");
+    });
+
+    // الحركة اليومية
+    transactions.forEach(x => {
+      addRow(x.type, x.amount, x.currency,
+        x.account, x.customer_name || null, x.description);
+    });
+
+    // حذف حركات التقرير السابقة ثم حفظ الجديدة
+    const { error: deleteError } = await supabaseClient
+      .from("report_transactions")
+      .delete()
+      .eq("report_id", reportId);
+
+    if (deleteError) throw deleteError;
+
+    if (rows.length) {
+      const { error: insertError } = await supabaseClient
+        .from("report_transactions")
+        .insert(rows);
+
+      if (insertError) throw insertError;
+    }
+
+    $("message").textContent = "تم حفظ التقرير في قاعدة البيانات السحابية بنجاح";
+
+  } catch (e) {
+    console.error(e);
+    $("message").textContent = "تعذر الحفظ: " + e.message;
+    alert("حدث خطأ أثناء الحفظ: " + e.message);
+  }
+}
+
+async function loadReport() {
+  if (!$("date").value) {
+    alert("اختر التاريخ أولاً");
+    return;
+  }
+
+  try {
+    const branchId = await getReportBranchId();
+
+    const { data: report, error } = await supabaseClient
+      .from("daily_reports")
+      .select("id,report_date,day")
+      .eq("branch_id", branchId)
+      .eq("report_date", $("date").value)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!report) {
+      alert("لا يوجد تقرير محفوظ لهذا الفرع والتاريخ");
+      return;
+    }
+
+    const { data: rows, error: rowsError } = await supabaseClient
+      .from("report_transactions")
+      .select("transaction_type,amount,currency_id,account,customer_name,description")
+      .eq("report_id", report.id);
+
+    if (rowsError) throw rowsError;
+
+    const currencies = await getCurrenciesMap();
+    const currencyNames = {};
+    Object.keys(currencies).forEach(name => {
+      currencyNames[currencies[name]] = name;
+    });
+
+    credits = [];
+    collections = [];
+    transactions = [];
+    $("cashAmount").value = 0;
+    $("cashCurrency").value = "ريال يمني";
+
+    rows.forEach(x => {
+      const currency = currencyNames[x.currency_id] || "ريال يمني";
+
+      if (x.transaction_type === "cash_sale") {
+        $("cashAmount").value = x.amount;
+        $("cashCurrency").value = currency;
+      } else if (x.transaction_type === "credit_sale") {
+        credits.push({
+          name: x.customer_name || "",
+          amount: Number(x.amount),
+          currency
+        });
+      } else if (x.transaction_type === "credit_collection") {
+        collections.push({
+          name: x.customer_name || "",
+          amount: Number(x.amount),
+          currency
+        });
+      } else {
+        transactions.push({
+          type: x.transaction_type,
+          amount: Number(x.amount),
+          currency,
+          account: x.account || "",
+          customer_name: x.customer_name || "",
+          description: x.description || ""
+        });
+      }
+    });
+
+    $("day").value = report.day || "";
+    $("message").textContent = "تم استرجاع التقرير من قاعدة البيانات السحابية";
+    renderAll();
+
+  } catch (e) {
+    console.error(e);
+    alert("تعذر استرجاع التقرير: " + e.message);
+  }
+}
+ 
+function clearReport(){
+ if(!confirm("هل تريد تفريغ بيانات الشاشة؟"))return;
+ credits=[];collections=[];transactions=[];
+ $("cashAmount").value=0;
+ $("message").textContent="";
+ renderAll();
+}
+
+function table(headers,rows){
+ return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+ <tbody>${rows.length?rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${headers.length}">لا توجد بيانات</td></tr>`}</tbody></table>`;
+}
+function printReport(){
+ if(!$("date").value){alert("اختر تاريخ التقرير");return}
+ let out=`
+ <div style="text-align:center;border-bottom:2px solid #000">
+ <h3>بسم الله الرحمن الرحيم</h3><h2>الربيدي للألمنيوم ولوازمه</h2><h3> يومية الحاج</h3>
+ </div>
+ <p><b>الفرع:</b> ${safe($("branch").value)}　
+ <b>التاريخ:</b> ${safe($("date").value)}　
+ <b>اليوم:</b> ${safe($("day").value)}</p>
+
+ <h3>الحركة اليومية</h3>
+ ${table(["الحساب","البيان","نوع السند","المبلغ","العملة"],
+ transactions.map(x=>[safe(x.account),safe(x.description),typeName(x.type),fmt(x.amount),safe(x.currency)]))}
+  <h3>المبيعات النقدية</h3>
+ ${table(["المبلغ","العملة"],[[fmt(amount("cashAmount")),safe($("cashCurrency").value)]])}
+ <h3>تفاصيل المبيعات الآجلة</h3>
+ ${table(["العميل","المبلغ","العملة"],credits.map(x=>[safe(x.name),fmt(x.amount),safe(x.currency)]))}
+ <h3>تفاصيل المبالغ المستلمة من الآجل</h3>
+ ${table(["العميل","المبلغ المستلم","العملة"],collections.map(x=>[safe(x.name),fmt(x.amount),safe(x.currency)]))}
+ <h3>ملخص العملاء</h3>
+ ${table(["العميل","العملة","مبيعات آجلة","مبالغ مستلمة","الفرق"],
+ [...$("customerSummary").rows].map(r=>[...r.cells].map(cell=>safe(cell.textContent))))}
+ <h3>ملخص التقرير اليومي حسب العملة</h3>
+ `;
+ 
+ let c = $("cashCurrency").value;
+
+ let cash = amount("cashAmount");
+ let credit = total(credits, c);
+ let got = total(collections, c);
+ let receipt = total(transactions.filter(x => x.type === "receipt"), c);
+ let transfer = total(transactions.filter(x => x.type === "transfer"), c);
+ let payment = total(transactions.filter(x => x.type === "payment"), c);
+
+ out += `<h3>ملخص التقرير اليومي - ${safe(c)}</h3>`;
+
+ out += table(["البيان", "المبلغ", "العملة"], [
+   ["المبيعات النقدية", fmt(cash), safe(c)],
+   ["المبيعات الآجلة", fmt(credit), safe(c)],
+   ["إجمالي المبيعات", fmt(cash + credit), safe(c)],
+   ["المبالغ المستلمة من الآجل", fmt(got), safe(c)],
+   ["سندات القبض", fmt(receipt), safe(c)],
+   ["التحويلات المستلمة", fmt(transfer), safe(c)],
+   ["سندات الصرف", fmt(payment), safe(c)]
+ ]);
+
+ out+=`<div style="display:flex;justify-content:space-between;margin-top:40px">
+ <b>المحاسب: ....................</b><b>المسؤول: ....................</b></div>`;
+ $("printReport").innerHTML=out;
+ window.print();
+}
+
+function setToday(){
+ let now=new Date();
+ let local=new Date(now.getTime()-now.getTimezoneOffset()*60000);
+ $("date").value=local.toISOString().slice(0,10);
+ $("day").value=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][now.getDay()];
+}
+$("cashAmount").addEventListener("input",renderAll);
+$("cashCurrency").addEventListener("change", function(){
+  $("creditCurrency").value = $("cashCurrency").value;
+  renderAll();
+});
+  $("creditCurrency").value = $("cashCurrency").value;
+setToday();
+renderAll();
+</script>
+  
+<script>
+const supabaseClient = window.supabase.createClient(
+  "https://bskmgwtegkusbjclpjfn.supabase.co",
+  "sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB"
+);
+  
+async function checkLogin() {
+  const { data: { session }, error } =
+    await supabaseClient.auth.getSession();
+
+  if (error || !session) {
+    window.location.replace("login.html");
+    return;
+  }
+
+  const { data: profile, error: profileError } =
+    await supabaseClient
+      .from("profiles")
+      .select("full_name, role, branch_id, username")
+      .eq("id", session.user.id)
+      .single();
+
+  if (profileError || !profile) {
+    alert("تعذر العثور على بيانات المستخدم");
+    await supabaseClient.auth.signOut();
+    window.location.replace("login.html");
+    return;
+  }
+
+  window.rubaidiUser = profile;
+
+  const params = new URLSearchParams(window.location.search);
+  const selectedBranch = params.get("branch");
+  const selectedDate = params.get("date");
+
+  const branchNames = {
+    1: "المركز الرئيسي - صنعاء",
+    2: "فرع مأرب",
+    3: "فرع المكلا",
+    4: "فرع عدن"
+  };
+
+  const branchSelect = document.getElementById("branch");
+
+  if (profile.role === "admin" && selectedBranch) {
+    branchSelect.value = branchNames[selectedBranch] || branchSelect.value;
+  }
+
+  if (profile.role !== "admin") {
+    branchSelect.value = branchNames[profile.branch_id];
+    branchSelect.disabled = true;
+  }
+
+  if (selectedDate) {
+    $("date").value = selectedDate;
+    await loadReport();
+  }
+
+  console.log("المستخدم:", profile);
+  console.log("الفرع:", profile.branch_id);
+
+  if (params.get("pdf") === "1" && selectedDate) {
+    setTimeout(() => {
+      printReport();
+    }, 1500);
+  }
+}
+
+checkLogin();
+
+</script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("تم تشغيل التطبيق"))
+      .catch(error => console.log("خطأ:", error));
+  });
+}
+  </script>
+</body>
+</html>
+
+
+

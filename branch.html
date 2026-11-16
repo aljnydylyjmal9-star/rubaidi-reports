@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#173b60">
+<title>تقارير الفرع - الربيدي</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:Tahoma;background:#eef1f4;margin:0;padding:15px;color:#222}
+.container{max-width:700px;margin:auto}
+.header{background:#173b60;color:white;padding:20px;border-radius:12px;text-align:center}
+.box{background:white;padding:15px;border-radius:12px;margin-top:15px}
+button{border:0;padding:12px;border-radius:7px;background:#173b60;color:white;cursor:pointer;margin:4px}
+.report{border-bottom:1px solid #ddd;padding:12px 0}
+small{color:#777}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h2>الربيدي للألمنيوم ولوازمه</h2>
+<h3 id="branchName">جارٍ تحميل الفرع...</h3>
+</div>
+
+<div class="box">
+<h3>سجل التقارير اليومية</h3>
+<label>اختر التاريخ</label>
+<input type="date" id="dateFilter">
+<button onclick="loadReports()">بحث</button>
+<div id="reports">جارٍ تحميل التقارير...</div>
+</div>
+
+<button onclick="history.back()">رجوع</button>
+</div>
+
+<script>
+const db=window.supabase.createClient(
+"https://bskmgwtegkusbjclpjfn.supabase.co",
+"sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB"
+);
+
+const params=new URLSearchParams(location.search);
+const branchId=Number(params.get("branch"));
+
+const branchNames={
+1:"المركز الرئيسي - صنعاء",
+2:"فرع مأرب",
+3:"فرع المكلا",
+4:"فرع عدن"
+};
+
+async function init(){
+ const {data:{session}}=await db.auth.getSession();
+ if(!session){location.replace("login.html");return;}
+
+ const {data:profile,error}=await db.from("profiles")
+ .select("role,branch_id")
+ .eq("id",session.user.id).single();
+
+ if(error||!profile){alert("تعذر التحقق من الحساب");return;}
+
+ if(profile.role!=="admin" && profile.branch_id!==branchId){
+  alert("ليس لديك صلاحية مشاهدة هذا الفرع");
+  location.replace("index.html");
+  return;
+ }
+
+ if(!branchNames[branchId]){
+  alert("الفرع غير صحيح");
+  location.replace("dashboard.html");
+  return;
+ }
+
+ document.getElementById("branchName").textContent=branchNames[branchId];
+ loadReports();
+}
+
+async function loadReports(){
+ const reports=document.getElementById("reports");
+ reports.textContent="جارٍ تحميل التقارير...";
+
+ let query=db.from("daily_reports")
+ .select("id,report_date,day")
+ .eq("branch_id",branchId)
+ .order("report_date",{ascending:false});
+
+ const date=document.getElementById("dateFilter").value;
+ if(date) query=query.eq("report_date",date);
+
+ const {data,error}=await query;
+ if(error){reports.textContent="تعذر تحميل التقارير: "+error.message;return;}
+
+ if(!data.length){reports.textContent="لا توجد تقارير لهذا الفرع";return;}
+
+ reports.innerHTML=data.map(r=>`
+ <div class="report">
+ <b>التاريخ: ${r.report_date}</b><br>
+ <small>اليوم: ${r.day||"غير محدد"}</small><br>
+ <button onclick="openReport('${r.report_date}')">فتح التقرير</button>
+<button onclick="openPDF('${r.report_date}')">📄 PDF</button>
+ </div>
+ `).join("");
+}
+
+function openReport(date){
+ sessionStorage.setItem("selectedBranchId",String(branchId));
+ sessionStorage.setItem("selectedReportDate",date);
+ location.href="index.html?branch="+branchId+"&date="+encodeURIComponent(date);
+}
+function openPDF(date){
+ const url = "index.html?branch=" + branchId +
+ "&date=" + encodeURIComponent(date) + "&pdf=1";
+
+ window.open(url, "_blank");
+}
+init();
+</script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("تم تشغيل التطبيق"))
+      .catch(error => console.log("خطأ:", error));
+  });
+}
+  </script>
+</body>
+</html>

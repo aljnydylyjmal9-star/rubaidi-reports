@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#173b60">
+<title>لوحة تحكم المدير - الربيدي</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:#eef1f4;font-family:Tahoma,Arial;color:#222}
+.container{max-width:750px;margin:auto}
+.header{background:#173b60;color:white;padding:25px;border-radius:14px;text-align:center}
+.header h2{margin:0 0 10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+.branch{background:white;border:1px solid #ddd;border-radius:13px;padding:25px 10px;text-align:center;cursor:pointer}
+.branch .icon{font-size:35px;margin-bottom:12px}
+.branch h3{margin:5px;font-size:17px}
+.branch p{color:#777;font-size:13px}
+button{border:0;border-radius:8px;background:#173b60;color:white;padding:12px 20px;cursor:pointer}
+.footer{text-align:center;margin-top:25px}
+@media(max-width:400px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h2>الربيدي للألمنيوم ولوازمه</h2>
+<div>لوحة تحكم المدير</div>
+<p id="welcome">جارٍ التحقق من الحساب...</p>
+</div>
+
+<div class="grid">
+<div class="branch" onclick="openBranch(1)">
+<div class="icon">🏢</div>
+<h3>المركز الرئيسي</h3>
+<p>صنعاء</p>
+</div>
+
+<div class="branch" onclick="openBranch(2)">
+<div class="icon">🏢</div>
+<h3>فرع مأرب</h3>
+<p>التقارير اليومية</p>
+</div>
+
+<div class="branch" onclick="openBranch(3)">
+<div class="icon">🏢</div>
+<h3>فرع المكلا</h3>
+<p>التقارير اليومية</p>
+</div>
+
+<div class="branch" onclick="openBranch(4)">
+<div class="icon">🏢</div>
+<h3>فرع عدن</h3>
+<p>التقارير اليومية</p>
+</div>
+</div>
+
+<div class="footer">
+<button onclick="logout()">تسجيل الخروج</button>
+</div>
+</div>
+
+<script>
+const db=window.supabase.createClient(
+"https://bskmgwtegkusbjclpjfn.supabase.co",
+"sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB"
+);
+
+async function init(){
+ const {data:{session}}=await db.auth.getSession();
+ if(!session){
+  location.replace("login.html");
+  return;
+ }
+
+ const {data:profile,error}=await db.from("profiles")
+ .select("full_name,role,branch_id")
+ .eq("id",session.user.id).single();
+
+ if(error||!profile){
+  alert("تعذر قراءة بيانات المستخدم");
+  location.replace("login.html");
+  return;
+ }
+
+ if(profile.role!=="admin"){
+  location.replace("index.html");
+  return;
+ }
+
+ document.getElementById("welcome").textContent=
+ "مرحباً "+profile.full_name;
+}
+
+function openBranch(id){
+ location.href="branch.html?branch="+id;
+}
+
+async function logout(){
+ await db.auth.signOut();
+ location.replace("login.html");
+}
+
+init();
+</script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("تم تشغيل التطبيق"))
+      .catch(error => console.log("خطأ:", error));
+  });
+}
+  </script>
+</body>
+</html>
+

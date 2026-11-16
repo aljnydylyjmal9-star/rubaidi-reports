@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#173b60">
+<title>تسجيل الدخول - الربيدي</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:Tahoma;background:#eef1f4;margin:0;padding:25px}
+.box{max-width:400px;margin:70px auto;background:white;padding:25px;border-radius:14px;box-shadow:0 3px 15px #ccc}
+h2{text-align:center;color:#173b60}
+input,button{width:100%;padding:14px;margin-top:14px;box-sizing:border-box;border-radius:8px;font-size:16px}
+input{border:1px solid #ccc}
+button{background:#173b60;color:white;border:0}
+#msg{text-align:center;margin-top:15px}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>الربيدي للألمنيوم ولوازمه</h2>
+<h3>تسجيل الدخول</h3>
+<input id="username" placeholder="اسم المستخدم" autocomplete="username">
+<input id="password" type="password" placeholder="كلمة المرور" autocomplete="current-password">
+<button onclick="login()">دخول</button>
+<div id="msg"></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://bskmgwtegkusbjclpjfn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function login(){
+ const username=document.getElementById("username").value.trim().toLowerCase();
+ const password=document.getElementById("password").value;
+ const msg=document.getElementById("msg");
+
+ const accounts={
+   admin:"aljnydylyjmal9@gmail.com",
+   marib1:"marib1@rubaidi.invalid"
+ };
+
+ if(!accounts[username]){
+   msg.textContent="اسم المستخدم غير صحيح";
+   return;
+ }
+ if(!password){
+   msg.textContent="أدخل كلمة المرور";
+   return;
+ }
+
+ msg.textContent="جارٍ تسجيل الدخول...";
+
+ const {data,error}=await db.auth.signInWithPassword({
+   email:accounts[username],
+   password:password
+ });
+
+ if(error){
+   msg.textContent="تعذر الدخول: "+error.message;
+   return;
+ }
+  const { data: profile, error: profileError } =
+  await db.from("profiles")
+  .select("role")
+  .eq("id", data.user.id)
+  .single();
+
+if (profileError || !profile) {
+  msg.textContent = "تعذر تحديد صلاحيات الحساب";
+  return;
+}
+
+if (profile.role === "admin") {
+  window.location.href = "dashboard.html";
+} else {
+  window.location.href = "index.html";
+}
+}
+</script>
+</body>
+</html>

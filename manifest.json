@@ -1,0 +1,13 @@
+
+{
+  "name": "الربيدي للألمنيوم ولوازمه",
+  "short_name": "الربيدي",
+  "description": "نظام التقارير اليومية لفروع الربيدي",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "login.html",
+  "display": "standalone",
+  "background_color": "#eef1f4",
+  "theme_color": "#173b60",
+  "orientation": "portrait"
+}
