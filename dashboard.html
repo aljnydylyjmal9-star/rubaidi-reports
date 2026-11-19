@@ -31,14 +31,12 @@ button{border:0;border-radius:8px;background:#173b60;color:white;padding:12px 20
 <div>لوحة تحكم المدير</div>
 <p id="welcome">جارٍ التحقق من الحساب...</p>
 </div>
-
 <div class="grid">
 <div class="branch" onclick="openBranch(1)">
 <div class="icon">🏢</div>
 <h3>المركز الرئيسي</h3>
 <p>صنعاء</p>
 </div>
-
 <div class="branch" onclick="openBranch(2)">
 <div class="icon">🏢</div>
 <h3>فرع مأرب</h3>
@@ -59,30 +57,25 @@ button{border:0;border-radius:8px;background:#173b60;color:white;padding:12px 20
 <button onclick="logout()">تسجيل الخروج</button>
 </div>
 </div>
-
 <script>
 const db=window.supabase.createClient(
 "https://bskmgwtegkusbjclpjfn.supabase.co",
 "sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB"
 );
-
 async function init(){
  const {data:{session}}=await db.auth.getSession();
  if(!session){
   location.replace("login.html");
   return;
  }
-
  const {data:profile,error}=await db.from("profiles")
  .select("full_name,role,branch_id")
  .eq("id",session.user.id).single();
-
  if(error||!profile){
   alert("تعذر قراءة بيانات المستخدم");
   location.replace("login.html");
   return;
  }
-
  if(profile.role!=="admin"){
   location.replace("index.html");
   return;
@@ -90,11 +83,9 @@ async function init(){
  document.getElementById("welcome").textContent=
  "مرحباً "+profile.full_name;
 }
-
 function openBranch(id){
  location.href="branch.html?branch="+id;
 }
-
 async function logout(){
  await db.auth.signOut();
  location.replace("login.html");
