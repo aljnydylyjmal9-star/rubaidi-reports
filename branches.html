@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إدارة الفروع - الربيدي</title>
+<style>
+body{font-family:Arial;background:#f2f4f7;margin:0;padding:20px}
+.container{max-width:550px;margin:auto;background:white;padding:20px;border-radius:12px}
+h2{text-align:center;color:#164b75}
+input,button{width:100%;padding:13px;margin:8px 0;box-sizing:border-box;border-radius:7px;font-size:16px}
+input{border:1px solid #ccc}
+button{border:0;background:#198754;color:white;font-weight:bold}
+.branch{background:#f1f5f9;padding:12px;margin:10px 0;border-radius:8px}
+.back{background:#555}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>🏢 إدارة فروع الربيدي</h2>
+
+<label>اسم الفرع</label>
+<input id="branchName" placeholder="مثال: صنعاء - فرع الثلاثين">
+
+<label>عنوان الفرع</label>
+<input id="branchAddress" placeholder="عنوان الفرع">
+
+<button onclick="addBranch()">إضافة الفرع</button>
+
+<h3>الفروع المسجلة</h3>
+<div id="branchList">جاري التحميل...</div>
+
+<button class="back" onclick="location.href='dashboard.html'">العودة للوحة المدير</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const db = window.supabase.createClient(
+"https://bskmgwtegkusbjclpjfn.supabase.co",
+"sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB"
+);
+
+async function checkAdmin(){
+ const {data:{session}}=await db.auth.getSession();
+ if(!session){
+  alert("يرجى تسجيل الدخول");
+  location.href="login.html";
+  return false;
+ }
+ const {data:profile,error}=await db.from("profiles")
+ .select("role").eq("id",session.user.id).single();
+
+ if(error || profile.role!=="admin"){
+  alert("هذه الصفحة للمدير فقط");
+  location.href="index.html";
+  return false;
+ }
+ return true;
+}
+
+async function loadBranches(){
+ const {data,error}=await db.from("branches")
+ .select("id,name,address").order("id");
+
+ if(error){
+  document.getElementById("branchList").textContent="تعذر تحميل الفروع: "+error.message;
+  return;
+ }
+
+ document.getElementById("branchList").innerHTML="";
+ data.forEach(b=>{
+  const div=document.createElement("div");
+  div.className="branch";
+  div.textContent=b.name+" — "+(b.address||"");
+  document.getElementById("branchList").appendChild(div);
+ });
+}
+
+async function addBranch(){
+ const name=document.getElementById("branchName").value.trim();
+ const address=document.getElementById("branchAddress").value.trim();
+
+ if(!name){alert("اكتب اسم الفرع");return;}
+
+ const {error}=await db.from("branches").insert({name,address});
+
+ if(error){
+  alert("تعذرت إضافة الفرع: "+error.message);
+  return;
+ }
+
+ alert("تمت إضافة الفرع بنجاح");
+ document.getElementById("branchName").value="";
+ document.getElementById("branchAddress").value="";
+ loadBranches();
+}
+
+(async()=>{
+ if(await checkAdmin()) await loadBranches();
+})();
+</script>
+</body>
+</html>

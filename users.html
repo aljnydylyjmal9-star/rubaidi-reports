@@ -4,7 +4,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>إدارة المستخدمين</title>
+<title>إدارة الموظفين</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 body {
   font-family: Arial;
@@ -20,6 +22,7 @@ body {
   border-radius: 12px;
 }
 h2 { text-align: center; color: #123b63; }
+
 input, select, button {
   width: 100%;
   box-sizing: border-box;
@@ -33,13 +36,38 @@ button {
   background: #123b63;
   color: white;
   border: 0;
+  cursor: pointer;
+}
+.editBtn { background: #e09b18; }
+.disableBtn { background: #b52b36; }
+.enableBtn { background: #198754; }
+.cancelBtn { background: #777; }
+
+.employee {
+  background: #f2f4f7;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 8px;
+}
+.employee p { margin: 8px 0; }
+
+#editBox {
+  display: none;
+  background: #eef3f8;
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+#msg, #editMsg {
+  white-space: pre-wrap;
 }
 </style>
 </head>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <body>
 <div class="container">
-<h2>إدارة المستخدمين</h2>
+
+<h2>إدارة الموظفين</h2>
 <p>الربيدي للألمنيوم ولوازمه</p>
 
 <hr>
@@ -61,10 +89,51 @@ button {
 </select>
 
 <button onclick="addEmployee()">إضافة الموظف</button>
-
 <p id="msg"></p>
+
+<hr>
+
+<h3>تعديل بيانات الموظف</h3>
+
+<div id="editBox">
+  <input type="hidden" id="editId">
+
+  <label>اسم الموظف</label>
+  <input id="editFullName" placeholder="اسم الموظف">
+
+  <label>اسم المستخدم</label>
+  <input id="editUsername" placeholder="اسم المستخدم">
+
+  <label>كلمة المرور الجديدة</label>
+  <input id="editPassword" type="password"
+         placeholder="اتركه فارغاً إذا لا تريد تغييرها">
+
+  <label>الفرع</label>
+  <select id="editBranch"></select>
+
+  <button onclick="saveEdit()" class="editBtn">
+    حفظ التعديلات
+  </button>
+
+  <button onclick="cancelEdit()" class="cancelBtn">
+    إلغاء
+  </button>
+
+  <p id="editMsg"></p>
 </div>
-  
+
+<hr>
+
+<h3>قائمة الموظفين</h3>
+
+<button onclick="loadEmployees()">🔄 تحديث القائمة</button>
+
+<div id="employeesList">
+جارٍ تحميل الموظفين...
+</div>
+
+</div>
+
 <script>
 const SUPABASE_URL =
 "https://bskmgwtegkusbjclpjfn.supabase.co";
@@ -77,32 +146,49 @@ const db = window.supabase.createClient(
   SUPABASE_KEY
 );
 
-// تحميل الفروع تلقائيًا
-async function loadBranches() {
-  const branchSelect = document.getElementById("branch");
-  const msg = document.getElementById("msg");
+let branchNames = {};
 
+// تحميل الفروع
+async function loadBranches() {
   const { data, error } = await db
     .from("branches")
     .select("id,name")
     .order("id");
 
   if (error) {
-    msg.textContent = "تعذر تحميل الفروع: " + error.message;
+    document.getElementById("msg").textContent =
+      "تعذر تحميل الفروع: " + error.message;
     return;
   }
 
-  branchSelect.innerHTML =
-    '<option value="">اختر الفرع</option>';
+  branchNames = {};
 
-  data.forEach(branch => {
-    const option = document.createElement("option");
-    option.value = branch.id;
-    option.textContent = branch.name;
-    branchSelect.appendChild(option);
+  const selects = [
+    document.getElementById("branch"),
+    document.getElementById("editBranch")
+  ];
+
+  selects.forEach(select => {
+    select.innerHTML = "";
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = "اختر الفرع";
+    select.appendChild(first);
+  });
+
+  (data || []).forEach(branch => {
+    branchNames[branch.id] = branch.name;
+
+    selects.forEach(select => {
+      const option = document.createElement("option");
+      option.value = branch.id;
+      option.textContent = branch.name;
+      select.appendChild(option);
+    });
   });
 }
-// إضافة موظف جديد
+
+// إضافة موظف
 async function addEmployee() {
   const fullName =
     document.getElementById("fullName").value.trim();
@@ -131,28 +217,20 @@ async function addEmployee() {
       body: {
         action: "create",
         full_name: fullName,
-        username: username,
-        password: password,
+        username,
+        password,
         branch_id: Number(branchId)
       }
     }
   );
-if (error) {
-  let details = error.message;
 
-  try {
-    if (error.context) {
-      const body = await error.context.json();
-      details = body.error || JSON.stringify(body);
-    }
-  } catch (e) {}
+  if (error) {
+    msg.textContent = "تعذرت الإضافة: " + await getError(error);
+    return;
+  }
 
-  msg.textContent = "تعذرت الإضافة: " + details;
-  return;
-}
   if (!data || !data.success) {
-    msg.textContent =
-      data?.error || "لم تتم إضافة الموظف";
+    msg.textContent = data?.error || "لم تتم إضافة الموظف";
     return;
   }
 
@@ -162,9 +240,237 @@ if (error) {
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
   document.getElementById("branch").value = "";
+
+  await loadEmployees();
 }
-  
-loadBranches();
+
+// استخراج رسالة الخطأ
+async function getError(error) {
+  try {
+    if (error.context) {
+      const body = await error.context.json();
+      return body.error || JSON.stringify(body);
+    }
+  } catch (e) {}
+
+  return error.message || "حدث خطأ";
+}
+
+// عرض الموظفين
+async function loadEmployees() {
+  const list = document.getElementById("employeesList");
+  list.textContent = "جارٍ تحميل الموظفين...";
+
+  const { data, error } = await db.functions.invoke(
+    "manage-users",
+    {
+      body: { action: "list" }
+    }
+  );
+
+  if (error) {
+    list.textContent =
+      "تعذر تحميل الموظفين: " + await getError(error);
+    return;
+  }
+
+  if (!data || !data.success) {
+    list.textContent = data?.error || "تعذر تحميل القائمة";
+    return;
+  }
+
+  list.innerHTML = "";
+
+  if (!data.employees || data.employees.length === 0) {
+    list.textContent = "لا يوجد موظفون حتى الآن";
+    return;
+  }
+
+  data.employees.forEach(employee => {
+    const item = document.createElement("div");
+    item.className = "employee";
+
+    const name = document.createElement("strong");
+    name.textContent = employee.full_name || "";
+
+    const username = document.createElement("p");
+    username.textContent =
+      "اسم المستخدم: " + employee.username;
+
+    const branch = document.createElement("p");
+    branch.textContent =
+      "الفرع: " +
+      (branchNames[employee.branch_id] || "غير محدد");
+
+    const status = document.createElement("p");
+    status.textContent = employee.is_active
+      ? "الحالة: نشط"
+      : "الحالة: متوقف";
+
+    const editButton = document.createElement("button");
+    editButton.className = "editBtn";
+    editButton.textContent = "✏️ تعديل بيانات الموظف";
+    editButton.onclick = () => editEmployee(employee);
+
+    const stateButton = document.createElement("button");
+
+    if (employee.is_active) {
+      stateButton.className = "disableBtn";
+      stateButton.textContent = "🔒 تعطيل الموظف";
+      stateButton.onclick = () =>
+        changeStatus(employee.id, "disable");
+    } else {
+      stateButton.className = "enableBtn";
+      stateButton.textContent = "✅ إعادة تفعيل الموظف";
+      stateButton.onclick = () =>
+        changeStatus(employee.id, "enable");
+    }
+
+    item.append(
+      name,
+      username,
+      branch,
+      status,
+      editButton,
+      stateButton
+    );
+
+    list.appendChild(item);
+  });
+}
+
+// فتح نموذج التعديل
+function editEmployee(employee) {
+  document.getElementById("editBox").style.display = "block";
+
+  document.getElementById("editId").value = employee.id;
+  document.getElementById("editFullName").value =
+    employee.full_name || "";
+
+  document.getElementById("editUsername").value =
+    employee.username || "";
+
+  document.getElementById("editPassword").value = "";
+
+  document.getElementById("editBranch").value =
+    employee.branch_id || "";
+
+  document.getElementById("editMsg").textContent = "";
+
+  document.getElementById("editBox").scrollIntoView({
+    behavior: "smooth"
+  });
+}
+
+// حفظ التعديلات
+async function saveEdit() {
+  const userId = document.getElementById("editId").value;
+
+  const fullName =
+    document.getElementById("editFullName").value.trim();
+
+  const username =
+    document.getElementById("editUsername").value.trim().toLowerCase();
+
+  const password =
+    document.getElementById("editPassword").value;
+
+  const branchId =
+    document.getElementById("editBranch").value;
+
+  const msg = document.getElementById("editMsg");
+
+  if (!fullName || !username || !branchId) {
+    msg.textContent = "أكمل الاسم واسم المستخدم والفرع";
+    return;
+  }
+
+  if (password && password.length < 6) {
+    msg.textContent = "كلمة المرور يجب ألا تقل عن 6 أحرف";
+    return;
+  }
+
+  msg.textContent = "جارٍ حفظ التعديلات...";
+
+  const request = {
+    action: "update",
+    user_id: userId,
+    full_name: fullName,
+    username,
+    branch_id: Number(branchId)
+  };
+
+  if (password) {
+    request.password = password;
+  }
+
+  const { data, error } = await db.functions.invoke(
+    "manage-users",
+    { body: request }
+  );
+
+  if (error) {
+    msg.textContent = "تعذر التعديل: " + await getError(error);
+    return;
+  }
+
+  if (!data || !data.success) {
+    msg.textContent = data?.error || "لم يتم حفظ التعديلات";
+    return;
+  }
+
+  msg.textContent = "تم تحديث بيانات الموظف بنجاح";
+
+  cancelEdit();
+  await loadEmployees();
+}
+
+// إغلاق نموذج التعديل
+function cancelEdit() {
+  document.getElementById("editBox").style.display = "none";
+  document.getElementById("editPassword").value = "";
+}
+
+// تعطيل أو تفعيل الموظف
+async function changeStatus(userId, action) {
+  const question = action === "disable"
+    ? "هل تريد تعطيل هذا الموظف؟"
+    : "هل تريد إعادة تفعيل هذا الموظف؟";
+
+  if (!confirm(question)) return;
+
+  const { data, error } = await db.functions.invoke(
+    "manage-users",
+    {
+      body: {
+        action,
+        user_id: userId
+      }
+    }
+  );
+
+  if (error) {
+    alert("حدث خطأ: " + await getError(error));
+    return;
+  }
+
+  if (!data || !data.success) {
+    alert(data?.error || "لم تنجح العملية");
+    return;
+  }
+
+  alert(data.message);
+  await loadEmployees();
+}
+
+// التشغيل الأول
+async function init() {
+  await loadBranches();
+  await loadEmployees();
+}
+
+init();
 </script>
+
 </body>
 </html>

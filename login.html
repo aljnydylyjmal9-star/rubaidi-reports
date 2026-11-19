@@ -4,82 +4,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#173b60">
 <title>تسجيل الدخول - الربيدي</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{font-family:Tahoma;background:#eef1f4;margin:0;padding:25px}
-.box{max-width:400px;margin:70px auto;background:white;padding:25px;border-radius:14px;box-shadow:0 3px 15px #ccc}
-h2{text-align:center;color:#173b60}
-input,button{width:100%;padding:14px;margin-top:14px;box-sizing:border-box;border-radius:8px;font-size:16px}
-input{border:1px solid #ccc}
-button{background:#173b60;color:white;border:0}
-#msg{text-align:center;margin-top:15px}
+body {
+  font-family: Tahoma;
+  background: #eef1f4;
+  margin: 0;
+  padding: 25px;
+}
+.box {
+  max-width: 400px;
+  margin: 70px auto;
+  background: white;
+  padding: 25px;
+  border-radius: 14px;
+  box-shadow: 0 3px 15px #ccc;
+}
+h2 { text-align: center; color: #173b60; }
+input, button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 14px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  font-size: 16px;
+}
+input { border: 1px solid #ccc; }
+button {
+  background: #173b60;
+  color: white;
+  border: 0;
+}
+#msg {
+  text-align: center;
+  margin-top: 15px;
+}
 </style>
 </head>
+
 <body>
 <div class="box">
-<h2>الربيدي للألمنيوم ولوازمه</h2>
-<h3>تسجيل الدخول</h3>
-<input id="username" placeholder="اسم المستخدم" autocomplete="username">
-<input id="password" type="password" placeholder="كلمة المرور" autocomplete="current-password">
-<button onclick="login()">دخول</button>
-<div id="msg"></div>
+  <h2>الربيدي للألمنيوم ولوازمه</h2>
+  <h3>تسجيل الدخول</h3>
+
+  <input id="username" placeholder="اسم المستخدم"
+         autocomplete="username">
+
+  <input id="password" type="password"
+         placeholder="كلمة المرور"
+         autocomplete="current-password">
+
+  <button id="loginButton" onclick="login()">دخول</button>
+  <div id="msg"></div>
 </div>
 
 <script>
-const SUPABASE_URL = "https://bskmgwtegkusbjclpjfn.supabase.co";
-const SUPABASE_KEY = "sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB";
+const SUPABASE_URL =
+"https://bskmgwtegkusbjclpjfn.supabase.co";
 
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_KEY =
+"sb_publishable_UsaxPuYr2JWUscX2VA5lmg_9vcSI1oB";
 
-async function login(){
- const username=document.getElementById("username").value.trim().toLowerCase();
- const password=document.getElementById("password").value;
- const msg=document.getElementById("msg");
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
- const accounts={
-   admin:"aljnydylyjmal9@gmail.com",
-   marib1:"marib1@rubaidi.invalid"
- };
+async function login() {
+  const username = document.getElementById("username")
+    .value.trim().toLowerCase();
 
- if(!accounts[username]){
-   msg.textContent="اسم المستخدم غير صحيح";
-   return;
- }
- if(!password){
-   msg.textContent="أدخل كلمة المرور";
-   return;
- }
+  const password = document.getElementById("password").value;
+  const msg = document.getElementById("msg");
+  const button = document.getElementById("loginButton");
 
- msg.textContent="جارٍ تسجيل الدخول...";
+  if (!username) {
+    msg.textContent = "أدخل اسم المستخدم";
+    return;
+  }
 
- const {data,error}=await db.auth.signInWithPassword({
-   email:accounts[username],
-   password:password
- });
+  if (!password) {
+    msg.textContent = "أدخل كلمة المرور";
+    return;
+  }
 
- if(error){
-   msg.textContent="تعذر الدخول: "+error.message;
-   return;
- }
-  const { data: profile, error: profileError } =
-  await db.from("profiles")
-  .select("role")
-  .eq("id", data.user.id)
-  .single();
+  let email;
 
-if (profileError || !profile) {
-  msg.textContent = "تعذر تحديد صلاحيات الحساب";
-  return;
-}
+  if (username === "admin") {
+    email = "aljnydylyjmal9@gmail.com";
+  } else {
+    if (!/^[a-zA-Z0-9._-]{3,32}$/.test(username)) {
+      msg.textContent = "اسم المستخدم غير صحيح";
+      return;
+    }
 
-if (profile.role === "admin") {
-  window.location.href = "dashboard.html";
-} else {
-  window.location.href = "index.html";
-}
+    email = username + "@rubaidi.invalid";
+  }
+
+  button.disabled = true;
+  msg.textContent = "جارٍ تسجيل الدخول...";
+
+  try {
+    const { data, error } = await db.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      msg.textContent = "اسم المستخدم أو كلمة المرور غير صحيحة";
+      return;
+    }
+
+    const { data: profile, error: profileError } =
+      await db.from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+    if (profileError || !profile) {
+      await db.auth.signOut();
+      msg.textContent = "تعذر تحديد صلاحيات الحساب";
+      return;
+    }
+
+    if (username === "admin" && profile.role !== "admin") {
+      await db.auth.signOut();
+      msg.textContent = "هذا الحساب ليس حساب المدير";
+      return;
+    }
+
+    if (username !== "admin" && profile.role !== "employee") {
+      await db.auth.signOut();
+      msg.textContent = "هذا الحساب غير مخصص للموظفين";
+      return;
+    }
+
+    if (profile.role === "admin") {
+      window.location.href = "dashboard.html";
+    } else {
+      window.location.href = "index.html";
+    }
+
+  } catch (error) {
+    msg.textContent = "حدث خطأ في الاتصال، حاول مرة أخرى";
+  } finally {
+    button.disabled = false;
+  }
 }
 </script>
 </body>

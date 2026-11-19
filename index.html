@@ -126,6 +126,7 @@ th{background:#e5eee9}
 <option>فرع مأرب</option>
 <option>فرع المكلا</option>
 <option>فرع عدن</option>
+<option>صنعاء - فرع الثلاثين</option>
 </select>
 <label>التاريخ</label>
 <input type="date" id="date">
@@ -167,7 +168,7 @@ th{background:#e5eee9}
 <label>المبلغ المستلم</label>
 <input type="number" id="collectionAmount" min="0" step="any">
 <label>العملة</label>
-<select id="creditCurrency" class="currency" disabled>
+<select id="collectionCurrency" class="currency">
 <option>ريال يمني</option>
 <option>ريال سعودي</option>
 <option>دولار أمريكي</option>
@@ -263,10 +264,20 @@ function addCredit(){
  renderAll();
 }
 function addCollection(){
- let name=$("collectionName").value.trim(),n=amount("collectionAmount"),currency=$("collectionCurrency").value;
- if(!name||n<=0){alert("أدخل اسم العميل والمبلغ");return}
+ let name=$("collectionName").value.trim();
+ let n=amount("collectionAmount");
+ let currency=$("collectionCurrency").value;
+
+ if(!name||n<=0){
+   alert("أدخل اسم العميل والمبلغ");
+   return;
+ }
+
  collections.push({name,amount:n,currency});
- $("collectionName").value="";$("collectionAmount").value="";
+
+ $("collectionName").value="";
+ $("collectionAmount").value="";
+
  renderAll();
 }
 function addTransaction(){
@@ -402,15 +413,16 @@ async function getReportBranchId() {
   if (user.role !== "admin") return user.branch_id;
 
   const branchNames = {
-    "المركز الرئيسي - صنعاء": "المركز الرئيسي صنعاء",
-    "المركز الرئيسي صنعاء": "المركز الرئيسي صنعاء",
-    "مأرب": "فرع مأرب",
-    "فرع مأرب": "فرع مأرب",
-    "المكلا": "فرع المكلا",
-    "فرع المكلا": "فرع المكلا",
-    "عدن": "فرع عدن",
-    "فرع عدن": "فرع عدن"
-  };
+  "المركز الرئيسي - صنعاء": "المركز الرئيسي صنعاء",
+  "المركز الرئيسي صنعاء": "المركز الرئيسي صنعاء",
+  "مأرب": "فرع مأرب",
+  "فرع مأرب": "فرع مأرب",
+  "المكلا": "فرع المكلا",
+  "فرع المكلا": "فرع المكلا",
+  "عدن": "فرع عدن",
+  "فرع عدن": "فرع عدن",
+  "صنعاء - فرع الثلاثين": "صنعاء - فرع الثلاثين"
+};
 
   const selected = $("branch").value;
   const name = branchNames[selected] || selected;
@@ -634,54 +646,146 @@ function table(headers,rows){
  return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
  <tbody>${rows.length?rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${headers.length}">لا توجد بيانات</td></tr>`}</tbody></table>`;
 }
+
 function printReport(){
- if(!$("date").value){alert("اختر تاريخ التقرير");return}
+ if(!$("date").value){
+   alert("اختر تاريخ التقرير");
+   return;
+ }
+
  let out=`
- <div style="text-align:center;border-bottom:2px solid #000">
- <h3>بسم الله الرحمن الرحيم</h3><h2>الربيدي للألمنيوم ولوازمه</h2><h3> يومية الحاج</h3>
+ <style>
+ #printReport {
+   font-family: Tahoma, Arial;
+   font-size: 14px !important;
+   color: #000;
+ }
+ #printReport h2 {
+   font-size: 21px !important;
+   margin: 8px 0;
+ }
+ #printReport h3 {
+   font-size: 17px !important;
+   margin: 12px 0 7px;
+   font-weight: bold;
+ }
+ #printReport p {
+   font-size: 14px !important;
+ }
+ #printReport table {
+   width: 100%;
+   border-collapse: collapse;
+   margin: 7px 0 14px;
+ }
+ #printReport th,
+ #printReport td {
+   border: 1px solid #000;
+   padding: 7px 5px !important;
+   font-size: 13px !important;
+   text-align: center;
+ }
+ #printReport th {
+   background: #e5e5e5 !important;
+   font-weight: bold;
+ }
+ </style>
+
+ <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px">
+   <h3>بسم الله الرحمن الرحيم</h3>
+   <h2>الربيدي للألمنيوم ولوازمه</h2>
+   <h3>يومية الحاج</h3>
  </div>
- <p><b>الفرع:</b> ${safe($("branch").value)}　
- <b>التاريخ:</b> ${safe($("date").value)}　
- <b>اليوم:</b> ${safe($("day").value)}</p>
 
- <h3>الحركة اليومية</h3>
- ${table(["الحساب","البيان","نوع السند","المبلغ","العملة"],
- transactions.map(x=>[safe(x.account),safe(x.description),typeName(x.type),fmt(x.amount),safe(x.currency)]))}
-  <h3>المبيعات النقدية</h3>
- ${table(["المبلغ","العملة"],[[fmt(amount("cashAmount")),safe($("cashCurrency").value)]])}
- <h3>تفاصيل المبيعات الآجلة</h3>
- ${table(["العميل","المبلغ","العملة"],credits.map(x=>[safe(x.name),fmt(x.amount),safe(x.currency)]))}
- <h3>تفاصيل المبالغ المستلمة من الآجل</h3>
- ${table(["العميل","المبلغ المستلم","العملة"],collections.map(x=>[safe(x.name),fmt(x.amount),safe(x.currency)]))}
- <h3>ملخص العملاء</h3>
- ${table(["العميل","العملة","مبيعات آجلة","مبالغ مستلمة","الفرق"],
- [...$("customerSummary").rows].map(r=>[...r.cells].map(cell=>safe(cell.textContent))))}
- <h3>ملخص التقرير اليومي حسب العملة</h3>
+ <p>
+ <b>الفرع:</b> ${safe($("branch").value)}
+ &nbsp;&nbsp;
+ <b>التاريخ:</b> ${safe($("date").value)}
+ &nbsp;&nbsp;
+ <b>اليوم:</b> ${safe($("day").value)}
+ </p>
+
+ <h3>أولاً: الحركة اليومية</h3>
+
+ ${table(
+  ["الحساب","البيان","نوع السند","المبلغ","العملة"],
+  transactions.map(x=>[
+   safe(x.account),
+   safe(x.description),
+   typeName(x.type),
+   fmt(x.amount),
+   safe(x.currency)
+  ])
+ )}
+
+ <h3>ثانياً: الحوالات المستلمة حسب العملة</h3>
+
+ ${table(
+  ["العملة","إجمالي الحوالات المستلمة"],
+  allCurrencies()
+   .map(c=>[
+     safe(c),
+     fmt(total(
+       transactions.filter(x=>x.type==="transfer"),
+       c
+     ))
+   ])
+   .filter(row=>row[1]!=="0")
+ )}
+
+ <h3>ثالثاً: ملخص المبيعات</h3>
+
+ ${table(
+  ["البيان","المبلغ","العملة"],
+  [
+   [
+    "المبيعات النقدية",
+    fmt(amount("cashAmount")),
+    safe($("cashCurrency").value)
+   ],
+   [
+    "مبيعات الآجل",
+    fmt(total(credits,$("cashCurrency").value)),
+    safe($("cashCurrency").value)
+   ],
+   [
+    "إجمالي المبيعات",
+    fmt(
+      amount("cashAmount")+
+      total(credits,$("cashCurrency").value)
+    ),
+    safe($("cashCurrency").value)
+   ]
+  ]
+ )}
+
+ <h3>رابعاً: بيان مبيعات الآجل</h3>
+
+ ${table(
+  ["اسم العميل","المبلغ","العملة"],
+  credits.map(x=>[
+   safe(x.name),
+   fmt(x.amount),
+   safe(x.currency)
+  ])
+ )}
+
+ <h3>خامساً: المبالغ المستلمة من الآجل</h3>
+
+ ${table(
+  ["اسم العميل","المبلغ المستلم","العملة"],
+  collections.map(x=>[
+   safe(x.name),
+   fmt(x.amount),
+   safe(x.currency)
+  ])
+ )}
+
+ <div style="display:flex;justify-content:space-between;margin-top:35px;font-size:14px">
+   <b>المحاسب: ........................</b>
+   <b>المسؤول: ........................</b>
+ </div>
  `;
- 
- let c = $("cashCurrency").value;
 
- let cash = amount("cashAmount");
- let credit = total(credits, c);
- let got = total(collections, c);
- let receipt = total(transactions.filter(x => x.type === "receipt"), c);
- let transfer = total(transactions.filter(x => x.type === "transfer"), c);
- let payment = total(transactions.filter(x => x.type === "payment"), c);
-
- out += `<h3>ملخص التقرير اليومي - ${safe(c)}</h3>`;
-
- out += table(["البيان", "المبلغ", "العملة"], [
-   ["المبيعات النقدية", fmt(cash), safe(c)],
-   ["المبيعات الآجلة", fmt(credit), safe(c)],
-   ["إجمالي المبيعات", fmt(cash + credit), safe(c)],
-   ["المبالغ المستلمة من الآجل", fmt(got), safe(c)],
-   ["سندات القبض", fmt(receipt), safe(c)],
-   ["التحويلات المستلمة", fmt(transfer), safe(c)],
-   ["سندات الصرف", fmt(payment), safe(c)]
- ]);
-
- out+=`<div style="display:flex;justify-content:space-between;margin-top:40px">
- <b>المحاسب: ....................</b><b>المسؤول: ....................</b></div>`;
  $("printReport").innerHTML=out;
  window.print();
 }
@@ -784,5 +888,6 @@ if ("serviceWorker" in navigator) {
   </script>
 </body>
 </html>
+
 
 
